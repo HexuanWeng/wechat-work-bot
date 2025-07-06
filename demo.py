@@ -112,6 +112,9 @@ def create_custom_handler():
     """创建自定义的消息处理器"""
     app = Flask(__name__)
     
+    # 消息去重缓存 - 防止重复处理
+    processed_messages = set()
+    
     # 创建WecomBotServer实例用于加密解密
     def get_server():
         return WecomBotServer(
@@ -189,6 +192,22 @@ def create_custom_handler():
             if not msg_info:
                 return "OK", 200
             
+            # 消息去重检查
+            msg_id = msg_info.get('msg_id', '')
+            if msg_id in processed_messages:
+                logging.warning(f"🔄 检测到重复消息，跳过处理: {msg_id}")
+                logging.info(f"📊 当前已处理消息数量: {len(processed_messages)}")
+                return "OK", 200
+            
+            # 添加到已处理列表
+            processed_messages.add(msg_id)
+            logging.info(f"📝 新消息处理开始，消息ID: {msg_id}")
+            
+            # 限制缓存大小，避免内存泄漏
+            if len(processed_messages) > 1000:
+                processed_messages.clear()
+                logging.info("🧹 消息缓存已清理")
+            
             # 处理消息
             if msg_info['msg_type'] == 'text':
                 content = msg_info['content'].strip()
@@ -253,17 +272,23 @@ def create_custom_handler():
                         
                         if ret != 0:
                             logging.error(f"❌ 加密响应失败，错误代码: {ret}")
+                            # 即使失败也要返回成功状态，避免企业微信重试
                             return "OK", 200
                         
                         logging.info(f"🔒 消息加密成功，准备发送回复")
                         logging.info(f"📤 发送成功，AI回复: {response_content}")
                         
-                        return encrypted_response
+                        # 确保返回正确的响应类型
+                        if isinstance(encrypted_response, bytes):
+                            return encrypted_response
+                        else:
+                            return str(encrypted_response)
                         
                     except Exception as e:
                         logging.error(f"💥 响应消息处理失败: {e}")
                         import traceback
                         logging.error(f"详细错误: {traceback.format_exc()}")
+                        # 即使处理失败，也返回成功状态，避免企业微信重试
                         return "OK", 200
                 else:
                     logging.warning("⚠️ 没有生成响应内容")
@@ -272,8 +297,14 @@ def create_custom_handler():
             return "OK", 200
             
         except Exception as e:
-            logging.error(f"消息处理错误: {e}")
+            logging.error(f"💥 全局消息处理错误: {e}")
+            import traceback
+            logging.error(f"详细错误: {traceback.format_exc()}")
+            # 确保返回200状态，避免企业微信重试
             return "OK", 200
+        finally:
+            # 确保无论如何都有响应
+            logging.info(f"📊 消息处理完成，消息ID: {msg_info.get('msg_id', 'unknown') if 'msg_info' in locals() else 'unknown'}")
     
     return app
 
