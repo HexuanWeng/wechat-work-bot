@@ -138,12 +138,8 @@ def create_custom_handler():
     @app.route('/test_response', methods=['GET'])
     def test_response():
         """测试响应格式"""
-        # 创建完整的企业微信回复格式测试
-        current_time = int(time.time())
-        test_xml = f"""<xml>
-<ToUserName><![CDATA[test_user]]></ToUserName>
-<FromUserName><![CDATA[{os.getenv('WECOM_CORP_ID', 'test_corp')}]]></FromUserName>
-<CreateTime>{current_time}</CreateTime>
+        # 企业微信被动回复格式测试
+        test_xml = """<xml>
 <MsgType><![CDATA[text]]></MsgType>
 <Content><![CDATA[这是一个测试消息]]></Content>
 </xml>"""
@@ -277,12 +273,8 @@ def create_custom_handler():
                     try:
                         logging.info(f"🔄 开始创建响应消息...")
                         
-                        # 创建完整的企业微信回复格式
-                        current_time = int(time.time())
+                        # 企业微信被动回复格式（比公众号简单）
                         response_xml = f"""<xml>
-<ToUserName><![CDATA[{msg_info['from_user']}]]></ToUserName>
-<FromUserName><![CDATA[{msg_info['to_user']}]]></FromUserName>
-<CreateTime>{current_time}</CreateTime>
 <MsgType><![CDATA[text]]></MsgType>
 <Content><![CDATA[{response_content}]]></Content>
 </xml>"""
