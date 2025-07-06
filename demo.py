@@ -197,18 +197,21 @@ def create_custom_handler():
                 
                 # 创建响应消息
                 if response_content:
-                    # 使用加密器的加密功能
+                    # 使用标准的响应消息类
                     try:
-                        # 构建响应XML
-                        response_xml = f"""<xml>
-<MsgType><![CDATA[text]]></MsgType>
-<Text>
-<Content><![CDATA[{response_content}]]></Content>
-</Text>
-</xml>"""
+                        # 创建标准的文本响应消息
+                        rsp_msg = RspTextMsg()
+                        rsp_msg.content = response_content
+                        
+                        # 获取XML格式
+                        response_xml = rsp_msg.dump_xml().decode('ascii')
                         
                         # 加密响应
-                        ret, encrypted_response = crypto_obj.EncryptMsg(response_xml, nonce, timestamp)
+                        ret, encrypted_response = crypto_obj.EncryptMsg(
+                            response_xml, 
+                            nonce, 
+                            timestamp
+                        )
                         if ret != 0:
                             logging.error(f"加密响应失败: {ret}")
                             return "OK", 200
