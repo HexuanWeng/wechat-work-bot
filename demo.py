@@ -4,7 +4,7 @@ import os
 import requests
 import json
 import xml.etree.ElementTree as ET
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 import time
 
 from wecom_bot_svr import WecomBotServer, RspTextMsg, RspMarkdownMsg, ReqMsg
@@ -134,6 +134,28 @@ def create_custom_handler():
     @app.route('/', methods=['GET'])
     def health_check():
         return "WeChat Work Bot is running! 🤖"
+    
+    @app.route('/test_response', methods=['GET'])
+    def test_response():
+        """测试响应格式"""
+        # 创建一个测试响应消息
+        rsp_msg = RspTextMsg()
+        rsp_msg.content = "这是一个测试消息"
+        
+        # 获取XML格式
+        response_xml = rsp_msg.dump_xml()
+        
+        # 转换为字符串
+        if isinstance(response_xml, bytes):
+            xml_str = response_xml.decode('utf-8')
+        else:
+            xml_str = str(response_xml)
+        
+        return Response(
+            f"Test XML Response:\n{xml_str}",
+            status=200,
+            headers={'Content-Type': 'text/plain; charset=utf-8'}
+        )
     
     @app.route('/wecom_bot', methods=['GET'])
     def verify_url():
@@ -276,13 +298,29 @@ def create_custom_handler():
                             return "OK", 200
                         
                         logging.info(f"🔒 消息加密成功，准备发送回复")
-                        logging.info(f"📤 发送成功，AI回复: {response_content}")
                         
-                        # 确保返回正确的响应类型
+                        # 企业微信期望返回纯字符串格式的响应
                         if isinstance(encrypted_response, bytes):
-                            return encrypted_response
+                            final_response = encrypted_response.decode('utf-8')
                         else:
-                            return str(encrypted_response)
+                            final_response = str(encrypted_response)
+                        
+                        logging.info(f"📤 返回响应到企业微信，长度: {len(final_response)}")
+                        logging.info(f"🎯 AI回复已发送: {response_content}")
+                        
+                        # 创建正确的Flask响应，确保企业微信能正确接收
+                        response = Response(
+                            final_response,
+                            status=200,
+                            headers={
+                                'Content-Type': 'text/plain; charset=utf-8'
+                            }
+                        )
+                        
+                        logging.info(f"🚀 完整响应已创建，Content-Type: text/plain; charset=utf-8")
+                        logging.info(f"📨 响应预览（前100字符）: {final_response[:100]}...")
+                        
+                        return response
                         
                     except Exception as e:
                         logging.error(f"💥 响应消息处理失败: {e}")
