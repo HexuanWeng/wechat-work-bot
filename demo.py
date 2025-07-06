@@ -40,9 +40,7 @@ def call_coze_api(message, coze_token, bot_id):
         headers = {
             'Authorization': f'Bearer {coze_token}',
             'Content-Type': 'application/json',
-            'Accept': '*/*',
-            'Host': 'api.coze.cn',
-            'Connection': 'keep-alive'
+            'Accept': 'application/json'
         }
         
         data = {
@@ -256,6 +254,9 @@ def create_custom_handler():
                 if content.lower() in ['help', '帮助', '?', '？']:
                     response_content = help_md()
                     logging.info("📖 返回帮助信息")
+                elif content.lower() in ['test', '测试']:
+                    response_content = "🤖 测试回复：企业微信机器人正常工作！"
+                    logging.info("🧪 返回测试回复")
                 elif coze_token and content:
                     try:
                         logging.info(f"🚀 开始调用 Coze AI 处理消息: {content}")
@@ -263,9 +264,9 @@ def create_custom_handler():
                         logging.info(f"✨ AI 处理完成，准备发送回复")
                     except Exception as e:
                         logging.error(f"❌ Coze 集成失败: {e}")
-                        response_content = f"AI处理出错，收到您的消息: {content}"
+                        response_content = f"🤖 AI暂时不可用，但我收到了您的消息: {content}"
                 else:
-                    response_content = f"收到您的消息: {content}"
+                    response_content = f"🤖 收到您的消息: {content}"
                     logging.info(f"📤 返回简单回复")
                 
                 # 创建并发送响应消息
@@ -309,8 +310,14 @@ def create_custom_handler():
                         logging.info(f"🚀 响应已直接返回给企业微信")
                         logging.info(f"📨 响应预览（前100字符）: {final_response[:100]}...")
                         
-                        # 返回加密的XML响应，不需要额外的HTTP响应包装
-                        return final_response
+                        # 企业微信要求特定的HTTP响应格式
+                        return Response(
+                            final_response,
+                            status=200,
+                            headers={
+                                'Content-Type': 'text/xml; charset=utf-8'
+                            }
+                        )
                         
                     except Exception as e:
                         logging.error(f"💥 响应消息处理失败: {e}")
