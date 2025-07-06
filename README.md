@@ -11,7 +11,7 @@ You need to set the following environment variables in Railway:
 - `WECOM_CORP_ID` - Your WeChat Work company ID
 - `WECOM_BOT_NAME` - Your bot name (default: 卷卷)
 - `WECOM_BOT_KEY` - Your bot webhook key (optional)
-- `PORT` - Port number (Railway sets this automatically)
+- `PORT` - Port number (Railway sets this automatically - DON'T set this manually)
 
 ## Deployment to Railway
 
