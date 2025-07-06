@@ -124,8 +124,7 @@ def create_custom_handler():
             path='/wecom_bot',
             token=os.getenv('WECOM_TOKEN', ''),
             aes_key=os.getenv('WECOM_AES_KEY', ''),
-            corp_id=os.getenv('WECOM_CORP_ID', ''),
-            bot_key=os.getenv('WECOM_BOT_KEY', '')
+            corp_id=os.getenv('WECOM_CORP_ID', '')
         )
     
     def get_crypto_obj():
