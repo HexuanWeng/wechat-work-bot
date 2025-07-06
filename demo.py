@@ -156,24 +156,36 @@ def create_custom_handler():
     
     @app.route('/wecom_bot', methods=['GET'])
     def verify_url():
-        # 这个用于企业微信的URL验证
-        echostr = request.args.get('echostr')
+        # 企业微信URL验证 - 按照官方文档要求实现
         msg_signature = request.args.get('msg_signature')
         timestamp = request.args.get('timestamp')
         nonce = request.args.get('nonce')
+        echostr = request.args.get('echostr')
+        
+        logging.info(f"🔍 URL验证请求 - echostr存在: {echostr is not None}")
+        logging.info(f"📋 参数: msg_signature={msg_signature}, timestamp={timestamp}, nonce={nonce}")
         
         if echostr:
-            # 使用加密解密器来验证URL
-            crypto_obj = get_crypto_obj()
             try:
-                ret, verified_str = crypto_obj.VerifyURL(msg_signature, timestamp, nonce, echostr)
+                # 使用加密解密器验证URL - 按照企业微信官方流程
+                crypto_obj = get_crypto_obj()
+                ret, decrypted_echo_str = crypto_obj.VerifyURL(msg_signature, timestamp, nonce, echostr)
+                
+                logging.info(f"🔒 验证结果: ret={ret}")
+                
                 if ret != 0:
-                    return "Verification failed", 400
-                return verified_str
+                    logging.error(f"❌ URL验证失败，错误代码: {ret}")
+                    return None  # 按照企业微信文档，验证失败返回None
+                
+                logging.info(f"✅ URL验证成功，返回解密字符串")
+                # 按照企业微信文档要求：在1秒内原样返回明文消息内容(不能加引号，不能带bom头，不能带换行符)
+                return decrypted_echo_str
+                
             except Exception as e:
-                logging.error(f"URL验证失败: {e}")
-                return "Verification failed", 400
+                logging.error(f"💥 URL验证异常: {e}")
+                return None
         
+        # 无echostr参数时返回基本信息
         return "WeChat Work Bot Endpoint", 200
     
     @app.route('/wecom_bot', methods=['POST'])
