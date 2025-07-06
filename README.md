@@ -9,7 +9,7 @@ You need to set the following environment variables in Railway:
 - `WECOM_TOKEN` - Your WeChat Work bot token
 - `WECOM_AES_KEY` - Your WeChat Work bot AES key  
 - `WECOM_CORP_ID` - Your WeChat Work company ID
-- `WECOM_BOT_NAME` - Your bot name (default: 通知机器人)
+- `WECOM_BOT_NAME` - Your bot name (default: 卷卷)
 - `WECOM_BOT_KEY` - Your bot webhook key (optional)
 - `PORT` - Port number (Railway sets this automatically)
 
