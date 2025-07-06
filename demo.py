@@ -91,14 +91,21 @@ def create_custom_handler():
     """创建自定义的消息处理器"""
     app = Flask(__name__)
     
-    # 创建WecomBotServer实例但不使用其消息处理
+    # 创建WecomBotServer实例用于加密解密
     def get_server():
         return WecomBotServer(
+            name=os.getenv('WECOM_BOT_NAME', '卷卷'),
+            host='0.0.0.0',
+            port=int(os.getenv('PORT', 8080)),
+            path='/wecom_bot',
             token=os.getenv('WECOM_TOKEN', ''),
             aes_key=os.getenv('WECOM_AES_KEY', ''),
             corp_id=os.getenv('WECOM_CORP_ID', ''),
-            logger_name=os.getenv('WECOM_BOT_NAME', '卷卷')
+            bot_key=os.getenv('WECOM_BOT_KEY', '')
         )
+    
+    def get_crypto_obj():
+        return get_server().get_crypto_obj()
     
     @app.route('/', methods=['GET'])
     def health_check():
@@ -113,10 +120,12 @@ def create_custom_handler():
         nonce = request.args.get('nonce')
         
         if echostr:
-            # 使用WecomBotServer来验证URL
-            server = get_server()
+            # 使用加密解密器来验证URL
+            crypto_obj = get_crypto_obj()
             try:
-                verified_str = server.verify_url(msg_signature, timestamp, nonce, echostr)
+                ret, verified_str = crypto_obj.VerifyURL(msg_signature, timestamp, nonce, echostr)
+                if ret != 0:
+                    return "Verification failed", 400
                 return verified_str
             except Exception as e:
                 logging.error(f"URL验证失败: {e}")
@@ -136,20 +145,26 @@ def create_custom_handler():
             echostr = request.args.get('echostr')
             if echostr:
                 # 验证请求
-                server = get_server()
-                verified_str = server.verify_url(msg_signature, timestamp, nonce, echostr)
+                crypto_obj = get_crypto_obj()
+                ret, verified_str = crypto_obj.VerifyURL(msg_signature, timestamp, nonce, echostr)
+                if ret != 0:
+                    return "Verification failed", 400
                 return verified_str
             
             # 获取POST数据
             encrypt_msg = request.get_data()
             
             # 解密消息
-            server = get_server()
-            decrypted_msg = server.decrypt_msg(encrypt_msg, msg_signature, timestamp, nonce)
-            logging.info(f"解密的消息: {decrypted_msg}")
+            crypto_obj = get_crypto_obj()
+            ret, decrypted_msg = crypto_obj.DecryptMsg(encrypt_msg, msg_signature, timestamp, nonce)
+            if ret != 0:
+                logging.error(f"解密消息失败: {ret}")
+                return "OK", 200
+            
+            logging.info(f"解密的消息: {decrypted_msg.decode()}")
             
             # 使用自定义解析器
-            msg_info = parse_wechat_xml(decrypted_msg)
+            msg_info = parse_wechat_xml(decrypted_msg.decode())
             if not msg_info:
                 return "OK", 200
             
@@ -182,19 +197,21 @@ def create_custom_handler():
                 
                 # 创建响应消息
                 if response_content:
-                    # 使用 server 的加密和发送功能
+                    # 使用加密器的加密功能
                     try:
                         # 构建响应XML
                         response_xml = f"""<xml>
-<ToUserName><![CDATA[{msg_info['from_user']}]]></ToUserName>
-<FromUserName><![CDATA[{msg_info['to_user']}]]></FromUserName>
-<CreateTime>{int(time.time())}</CreateTime>
 <MsgType><![CDATA[text]]></MsgType>
+<Text>
 <Content><![CDATA[{response_content}]]></Content>
+</Text>
 </xml>"""
                         
                         # 加密响应
-                        encrypted_response = server.encrypt_msg(response_xml, timestamp, nonce)
+                        ret, encrypted_response = crypto_obj.EncryptMsg(response_xml, nonce, timestamp)
+                        if ret != 0:
+                            logging.error(f"加密响应失败: {ret}")
+                            return "OK", 200
                         return encrypted_response
                     except Exception as e:
                         logging.error(f"响应消息加密失败: {e}")
