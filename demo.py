@@ -92,12 +92,37 @@ def create_custom_handler():
     app = Flask(__name__)
     
     # 创建WecomBotServer实例但不使用其消息处理
-    server = WecomBotServer(
-        token=os.getenv('WECOM_TOKEN', ''),
-        aes_key=os.getenv('WECOM_AES_KEY', ''),
-        corp_id=os.getenv('WECOM_CORP_ID', ''),
-        logger_name=os.getenv('WECOM_BOT_NAME', '卷卷')
-    )
+    def get_server():
+        return WecomBotServer(
+            token=os.getenv('WECOM_TOKEN', ''),
+            aes_key=os.getenv('WECOM_AES_KEY', ''),
+            corp_id=os.getenv('WECOM_CORP_ID', ''),
+            logger_name=os.getenv('WECOM_BOT_NAME', '卷卷')
+        )
+    
+    @app.route('/', methods=['GET'])
+    def health_check():
+        return "WeChat Work Bot is running! 🤖"
+    
+    @app.route('/wecom_bot', methods=['GET'])
+    def verify_url():
+        # 这个用于企业微信的URL验证
+        echostr = request.args.get('echostr')
+        msg_signature = request.args.get('msg_signature')
+        timestamp = request.args.get('timestamp')
+        nonce = request.args.get('nonce')
+        
+        if echostr:
+            # 使用WecomBotServer来验证URL
+            server = get_server()
+            try:
+                verified_str = server.verify_url(msg_signature, timestamp, nonce, echostr)
+                return verified_str
+            except Exception as e:
+                logging.error(f"URL验证失败: {e}")
+                return "Verification failed", 400
+        
+        return "WeChat Work Bot Endpoint", 200
     
     @app.route('/wecom_bot', methods=['POST'])
     def handle_message():
@@ -111,6 +136,7 @@ def create_custom_handler():
             echostr = request.args.get('echostr')
             if echostr:
                 # 验证请求
+                server = get_server()
                 verified_str = server.verify_url(msg_signature, timestamp, nonce, echostr)
                 return verified_str
             
@@ -118,6 +144,7 @@ def create_custom_handler():
             encrypt_msg = request.get_data()
             
             # 解密消息
+            server = get_server()
             decrypted_msg = server.decrypt_msg(encrypt_msg, msg_signature, timestamp, nonce)
             logging.info(f"解密的消息: {decrypted_msg}")
             
@@ -229,37 +256,6 @@ def main():
     try:
         # 使用自定义处理器
         app = create_custom_handler()
-        
-        # 添加健康检查路由
-        @app.route('/', methods=['GET'])
-        def health_check():
-            return "WeChat Work Bot is running! 🤖"
-        
-        # 添加验证路由
-        @app.route('/wecom_bot', methods=['GET'])
-        def verify_url():
-            # 这个用于企业微信的URL验证
-            echostr = request.args.get('echostr')
-            msg_signature = request.args.get('msg_signature')
-            timestamp = request.args.get('timestamp')
-            nonce = request.args.get('nonce')
-            
-            if echostr:
-                # 使用WecomBotServer来验证URL
-                server = WecomBotServer(
-                    token=token,
-                    aes_key=aes_key,
-                    corp_id=corp_id,
-                    logger_name=bot_name
-                )
-                try:
-                    verified_str = server.verify_url(msg_signature, timestamp, nonce, echostr)
-                    return verified_str
-                except Exception as e:
-                    logging.error(f"URL验证失败: {e}")
-                    return "Verification failed", 400
-            
-            return "WeChat Work Bot Endpoint", 200
         
         logging.info(f"Server starting on {host}:{port}/wecom_bot")
         app.run(host=host, port=port, debug=True)
