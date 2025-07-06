@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from flask import Flask, request, jsonify, Response
 import time
 
-from wecom_bot_svr import WecomBotServer, RspTextMsg, RspMarkdownMsg, ReqMsg
+from wecom_bot_svr import WecomBotServer, RspMarkdownMsg, ReqMsg
 from wecom_bot_svr.req_msg import TextReqMsg
 
 
@@ -138,21 +138,14 @@ def create_custom_handler():
     @app.route('/test_response', methods=['GET'])
     def test_response():
         """测试响应格式"""
-        # 创建一个测试响应消息
-        rsp_msg = RspTextMsg()
-        rsp_msg.content = "这是一个测试消息"
-        
-        # 获取XML格式
-        response_xml = rsp_msg.dump_xml()
-        
-        # 转换为字符串
-        if isinstance(response_xml, bytes):
-            xml_str = response_xml.decode('utf-8')
-        else:
-            xml_str = str(response_xml)
+        # 手动创建测试XML响应
+        test_xml = """<xml>
+<MsgType><![CDATA[text]]></MsgType>
+<Content><![CDATA[这是一个测试消息]]></Content>
+</xml>"""
         
         return Response(
-            f"Test XML Response:\n{xml_str}",
+            f"Test XML Response:\n{test_xml}",
             status=200,
             headers={'Content-Type': 'text/plain; charset=utf-8'}
         )
@@ -268,22 +261,16 @@ def create_custom_handler():
                     try:
                         logging.info(f"🔄 开始创建响应消息...")
                         
-                        # 创建标准的文本响应消息
-                        rsp_msg = RspTextMsg()
-                        rsp_msg.content = response_content
+                        # 手动创建正确的XML响应格式，支持中文
+                        response_xml = f"""<xml>
+<MsgType><![CDATA[text]]></MsgType>
+<Content><![CDATA[{response_content}]]></Content>
+</xml>"""
                         
-                        # 获取XML格式
-                        response_xml = rsp_msg.dump_xml()
+                        # 转换为字节格式用于加密
+                        response_xml_bytes = response_xml.encode('utf-8')
                         
-                        # 确保XML是字节格式 - EncryptMsg需要字节类型
-                        if isinstance(response_xml, str):
-                            response_xml_bytes = response_xml.encode('utf-8')
-                        else:
-                            response_xml_bytes = response_xml
-                        
-                        # 记录XML内容（转为字符串用于日志）
-                        xml_for_log = response_xml_bytes.decode('utf-8') if isinstance(response_xml_bytes, bytes) else str(response_xml_bytes)
-                        logging.info(f"📋 生成的响应XML: {xml_for_log}")
+                        logging.info(f"📋 生成的响应XML: {response_xml}")
                         
                         # 加密响应 - 传递字节类型
                         ret, encrypted_response = crypto_obj.EncryptMsg(
@@ -307,20 +294,11 @@ def create_custom_handler():
                         
                         logging.info(f"📤 返回响应到企业微信，长度: {len(final_response)}")
                         logging.info(f"🎯 AI回复已发送: {response_content}")
-                        
-                        # 创建正确的Flask响应，确保企业微信能正确接收
-                        response = Response(
-                            final_response,
-                            status=200,
-                            headers={
-                                'Content-Type': 'text/plain; charset=utf-8'
-                            }
-                        )
-                        
-                        logging.info(f"🚀 完整响应已创建，Content-Type: text/plain; charset=utf-8")
+                        logging.info(f"🚀 响应已直接返回给企业微信")
                         logging.info(f"📨 响应预览（前100字符）: {final_response[:100]}...")
                         
-                        return response
+                        # 返回加密的XML响应，不需要额外的HTTP响应包装
+                        return final_response
                         
                     except Exception as e:
                         logging.error(f"💥 响应消息处理失败: {e}")
