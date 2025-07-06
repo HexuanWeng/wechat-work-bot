@@ -184,6 +184,7 @@ def create_custom_handler():
     
     @app.route('/wecom_bot', methods=['POST'])
     def handle_message():
+        nonlocal processed_messages  # 声明使用外层函数的processed_messages变量
         try:
             # 获取查询参数
             msg_signature = request.args.get('msg_signature')
@@ -315,7 +316,7 @@ def create_custom_handler():
                             final_response,
                             status=200,
                             headers={
-                                'Content-Type': 'text/xml; charset=utf-8'
+                                'Content-Type': 'text/plain; charset=utf-8'
                             }
                         )
                         
