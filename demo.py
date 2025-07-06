@@ -138,8 +138,12 @@ def create_custom_handler():
     @app.route('/test_response', methods=['GET'])
     def test_response():
         """测试响应格式"""
-        # 手动创建测试XML响应
-        test_xml = """<xml>
+        # 创建完整的企业微信回复格式测试
+        current_time = int(time.time())
+        test_xml = f"""<xml>
+<ToUserName><![CDATA[test_user]]></ToUserName>
+<FromUserName><![CDATA[{os.getenv('WECOM_CORP_ID', 'test_corp')}]]></FromUserName>
+<CreateTime>{current_time}</CreateTime>
 <MsgType><![CDATA[text]]></MsgType>
 <Content><![CDATA[这是一个测试消息]]></Content>
 </xml>"""
@@ -261,8 +265,12 @@ def create_custom_handler():
                     try:
                         logging.info(f"🔄 开始创建响应消息...")
                         
-                        # 手动创建正确的XML响应格式，支持中文
+                        # 创建完整的企业微信回复格式
+                        current_time = int(time.time())
                         response_xml = f"""<xml>
+<ToUserName><![CDATA[{msg_info['from_user']}]]></ToUserName>
+<FromUserName><![CDATA[{msg_info['to_user']}]]></FromUserName>
+<CreateTime>{current_time}</CreateTime>
 <MsgType><![CDATA[text]]></MsgType>
 <Content><![CDATA[{response_content}]]></Content>
 </xml>"""
