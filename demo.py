@@ -234,15 +234,19 @@ def create_custom_handler():
                         # 获取XML格式
                         response_xml = rsp_msg.dump_xml()
                         
-                        # 确保XML是字符串格式
-                        if isinstance(response_xml, bytes):
-                            response_xml = response_xml.decode('ascii')
+                        # 确保XML是字节格式 - EncryptMsg需要字节类型
+                        if isinstance(response_xml, str):
+                            response_xml_bytes = response_xml.encode('utf-8')
+                        else:
+                            response_xml_bytes = response_xml
                         
-                        logging.info(f"📋 生成的响应XML: {response_xml}")
+                        # 记录XML内容（转为字符串用于日志）
+                        xml_for_log = response_xml_bytes.decode('utf-8') if isinstance(response_xml_bytes, bytes) else str(response_xml_bytes)
+                        logging.info(f"📋 生成的响应XML: {xml_for_log}")
                         
-                        # 加密响应
+                        # 加密响应 - 传递字节类型
                         ret, encrypted_response = crypto_obj.EncryptMsg(
-                            response_xml, 
+                            response_xml_bytes, 
                             nonce, 
                             timestamp
                         )
