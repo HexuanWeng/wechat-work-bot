@@ -12,10 +12,22 @@ from wecom_bot_svr.req_msg import TextReqMsg
 
 
 def help_md():
-    return """### Help 列表
-- [给项目点赞](https://github.com/easy-wx/wecom-bot-svr)
-- 发送任何消息与 AI 智能体对话
-- 其他功能请自行开发
+    return """🤖 **卷卷 AI 助手使用指南**
+
+🎯 **主要功能：**
+• 智能对话：直接发送消息与 AI 对话
+• 业务咨询：处理增删改查相关业务需求
+• 智能问答：回答各类问题和提供建议
+
+💬 **使用方法：**
+• @卷卷 你的问题或需求
+• 例如：@卷卷 请帮我分析一下数据
+• 例如：@卷卷 如何优化数据库查询
+
+📞 **获取帮助：**
+• 发送 help、帮助、? 获取此帮助信息
+
+✨ **由 Coze AI 智能体驱动**
 """
 
 
@@ -41,26 +53,35 @@ def call_coze_api(message, coze_token, bot_id):
             "stream": False
         }
         
-        logging.info(f"调用 Coze API - 消息: {message}")
+        logging.info(f"🤖 调用 Coze API - 消息: {message}")
         response = requests.post(url, headers=headers, json=data, timeout=30)
         
         if response.status_code == 200:
             result = response.json()
-            logging.info(f"Coze API 响应: {result}")
+            logging.info(f"✅ Coze API 响应成功: {result}")
             
             # 提取回复内容
             if 'messages' in result and len(result['messages']) > 0:
                 for msg in result['messages']:
                     if msg.get('type') == 'answer':
-                        return msg.get('content', '抱歉，我没有理解你的问题。')
+                        ai_response = msg.get('content', '抱歉，我没有理解你的问题。').strip()
+                        # 清理回复内容，移除多余的空格和换行
+                        ai_response = ' '.join(ai_response.split())
+                        # 限制回复长度，避免超过企业微信限制
+                        if len(ai_response) > 2000:
+                            ai_response = ai_response[:1900] + "...\n\n(回复内容过长，已截断)"
+                        
+                        logging.info(f"🎯 AI 回复内容: {ai_response}")
+                        return ai_response
             
+            logging.warning("⚠️ Coze API 响应中没有找到有效的回复内容")
             return "抱歉，我暂时无法回答你的问题。"
         else:
-            logging.error(f"Coze API 调用失败: {response.status_code}, {response.text}")
+            logging.error(f"❌ Coze API 调用失败: {response.status_code}, {response.text}")
             return "抱歉，AI 服务暂时不可用。"
     
     except Exception as e:
-        logging.error(f"Coze API 调用异常: {str(e)}")
+        logging.error(f"💥 Coze API 调用异常: {str(e)}")
         return "抱歉，AI 服务出现异常。"
 
 
@@ -173,10 +194,11 @@ def create_custom_handler():
                 content = msg_info['content'].strip()
                 
                 # 移除@机器人的部分
-                if content.startswith('@卷卷'):
-                    content = content.replace('@卷卷', '').strip()
+                bot_name = os.getenv('WECOM_BOT_NAME', '卷卷')
+                if content.startswith(f'@{bot_name}'):
+                    content = content.replace(f'@{bot_name}', '').strip()
                 
-                logging.info(f"处理消息内容: {content}")
+                logging.info(f"📝 处理消息内容: {content}")
                 
                 # 获取 Coze 配置
                 coze_token = os.getenv('COZE_API_TOKEN', '')
@@ -184,27 +206,39 @@ def create_custom_handler():
                 
                 response_content = ""
                 
-                if content == 'help':
+                # 处理不同类型的消息
+                if content.lower() in ['help', '帮助', '?', '？']:
                     response_content = help_md()
+                    logging.info("📖 返回帮助信息")
                 elif coze_token and content:
                     try:
+                        logging.info(f"🚀 开始调用 Coze AI 处理消息: {content}")
                         response_content = call_coze_api(content, coze_token, bot_id)
+                        logging.info(f"✨ AI 处理完成，准备发送回复")
                     except Exception as e:
-                        logging.error(f"Coze integration failed: {e}")
-                        response_content = f"收到消息: {content}"
+                        logging.error(f"❌ Coze 集成失败: {e}")
+                        response_content = f"AI处理出错，收到您的消息: {content}"
                 else:
-                    response_content = f"收到消息: {content}"
+                    response_content = f"收到您的消息: {content}"
+                    logging.info(f"📤 返回简单回复")
                 
-                # 创建响应消息
+                # 创建并发送响应消息
                 if response_content:
-                    # 使用标准的响应消息类
                     try:
+                        logging.info(f"🔄 开始创建响应消息...")
+                        
                         # 创建标准的文本响应消息
                         rsp_msg = RspTextMsg()
                         rsp_msg.content = response_content
                         
                         # 获取XML格式
-                        response_xml = rsp_msg.dump_xml().decode('ascii')
+                        response_xml = rsp_msg.dump_xml()
+                        
+                        # 确保XML是字符串格式
+                        if isinstance(response_xml, bytes):
+                            response_xml = response_xml.decode('ascii')
+                        
+                        logging.info(f"📋 生成的响应XML: {response_xml}")
                         
                         # 加密响应
                         ret, encrypted_response = crypto_obj.EncryptMsg(
@@ -212,13 +246,24 @@ def create_custom_handler():
                             nonce, 
                             timestamp
                         )
+                        
                         if ret != 0:
-                            logging.error(f"加密响应失败: {ret}")
+                            logging.error(f"❌ 加密响应失败，错误代码: {ret}")
                             return "OK", 200
+                        
+                        logging.info(f"🔒 消息加密成功，准备发送回复")
+                        logging.info(f"📤 发送成功，AI回复: {response_content}")
+                        
                         return encrypted_response
+                        
                     except Exception as e:
-                        logging.error(f"响应消息加密失败: {e}")
+                        logging.error(f"💥 响应消息处理失败: {e}")
+                        import traceback
+                        logging.error(f"详细错误: {traceback.format_exc()}")
                         return "OK", 200
+                else:
+                    logging.warning("⚠️ 没有生成响应内容")
+                    return "OK", 200
             
             return "OK", 200
             
@@ -277,8 +322,12 @@ def main():
         # 使用自定义处理器
         app = create_custom_handler()
         
-        logging.info(f"Server starting on {host}:{port}/wecom_bot")
-        app.run(host=host, port=port, debug=True)
+        logging.info(f"🚀 Server starting on {host}:{port}/wecom_bot")
+        logging.info(f"🎯 Ready to receive messages and respond with AI!")
+        
+        # 生产环境关闭debug模式
+        is_debug = os.getenv('DEBUG', 'False').lower() == 'true'
+        app.run(host=host, port=port, debug=is_debug)
     except Exception as e:
         logging.error(f"Failed to start server: {e}")
         sys.exit(1)
