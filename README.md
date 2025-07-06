@@ -12,6 +12,8 @@ You need to set the following environment variables in Railway:
 - `WECOM_BOT_NAME` - Your bot name (default: 卷卷)
 - `WECOM_BOT_KEY` - Your bot webhook key (optional)
 - `PORT` - Port number (Railway sets this automatically - DON'T set this manually)
+- `COZE_API_TOKEN` - Your Coze API token (optional, for AI integration)
+- `COZE_BOT_ID` - Your Coze bot ID (optional, for AI integration)
 
 ## Deployment to Railway
 
@@ -26,6 +28,8 @@ You need to set the following environment variables in Railway:
 - Can send files when requested
 - Handles group chat events
 - Supports @mentions in group chats
+- **AI Integration**: Powered by Coze AI for intelligent conversations
+- **Smart Replies**: All messages (except commands) are processed by AI
 
 ## Webhook URL
 
